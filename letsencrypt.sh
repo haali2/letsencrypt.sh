@@ -109,12 +109,12 @@ base64url() {
 
 log() {
     if [ -z "$QUIET" ]; then
-        echo "$@" > /dev/stderr
+        echo "$@" >&2
     fi
 }
 
 die() {
-    [ -n "$1" ] && printf "%s\n" "$1" > /dev/stderr
+    [ -n "$1" ] && printf "%s\n" "$1" >&2
     exit 1
 }
 
@@ -138,15 +138,15 @@ handle_curl_exit() {
     CURL_URI="$2"
 
     if [ "$CURL_EXIT" "!=" 0 ]; then
-        echo "error while making a web request to \"$CURL_URI\"" > /dev/stderr
-        echo "curl exit status: $CURL_EXIT" > /dev/stderr
+        echo "error while making a web request to \"$CURL_URI\"" >&2
+        echo "curl exit status: $CURL_EXIT" >&2
         case "$CURL_EXIT" in
             # see man curl "EXIT CODES"
-             3) echo "  malformed URI" > /dev/stderr;;
-             6) echo "  could not resolve host" > /dev/stderr;;
-             7) echo "  failed to connect" > /dev/stderr;;
-            28) echo "  operation timeout" > /dev/stderr;;
-            35) echo "  SSL connect error" > /dev/stderr;;
+             3) echo "  malformed URI" >&2;;
+             6) echo "  could not resolve host" >&2;;
+             7) echo "  failed to connect" >&2;;
+            28) echo "  operation timeout" >&2;;
+            35) echo "  SSL connect error" >&2;;
         esac
 
         exit 1
@@ -158,9 +158,9 @@ handle_openssl_exit() {
     OPENSSL_ACTION=$2
 
     if [ "$OPENSSL_EXIT" "!=" 0 ]; then
-        echo "error while $OPENSSL_ACTION" > /dev/stderr
-        echo "openssl exit status: $OPENSSL_EXIT" > /dev/stderr
-        cat "$OPENSSL_ERR" > /dev/stderr
+        echo "error while $OPENSSL_ACTION" >&2
+        echo "openssl exit status: $OPENSSL_EXIT" >&2
+        cat "$OPENSSL_ERR" >&2
         exit 1
     fi
 }
@@ -170,25 +170,25 @@ check_http_status() {
 }
 
 unhandled_response() {
-    echo "unhandled response while $1" > /dev/stderr
-    echo > /dev/stderr
+    echo "unhandled response while $1" >&2
+    echo >&2
 
-    cat "$RESP_HEADER" "$RESP_BODY" > /dev/stderr
+    cat "$RESP_HEADER" "$RESP_BODY" >&2
 
-    echo > /dev/stderr
+    echo >&2
 
     exit 1
 }
 
 show_error() {
     if [ -n "$1" ]; then
-        echo "error while $1" > /dev/stderr
+        echo "error while $1" >&2
     fi
 
     ERR_TYPE="`sed -e 's/.*"type":"\([^"]*\)".*/\1/' "$RESP_BODY"`"
     ERR_DETAILS="`sed -e 's/.*"detail":"\([^"]*\)".*/\1/' "$RESP_BODY"`"
 
-    echo "  $ERR_DETAILS ($ERR_TYPE)" > /dev/stderr
+    echo "  $ERR_DETAILS ($ERR_TYPE)" >&2
 }
 
 # generate the PROTECTED variable, which contains a nonce retrieved from the
@@ -197,7 +197,7 @@ show_error() {
 gen_protected(){
     NONCE="`cat "$LAST_NONCE"`"
     if [ -z "$NONCE" ]; then
-        # echo fetch new nonce > /dev/stderr
+        # echo fetch new nonce >&2
         curl -D "$LAST_NONCE_FETCH" -o /dev/null -s "$CA/directory"
         handle_curl_exit $? "$CA/directory"
 
@@ -432,7 +432,7 @@ check_verification() {
                         remove_domain_response
                         ;;
                     invalid)
-                        echo $DOMAIN: invalid > /dev/stderr
+                        echo $DOMAIN: invalid >&2
                         show_error
                         remove_domain_response
 
@@ -559,14 +559,14 @@ case "$ACTION" in
             p) SHOW_THUMBPRINT=1;;
             a) ACCOUNT_KEY="$OPTARG";;
             e) ACCOUNT_EMAIL="$OPTARG";;
-            ?|:) echo "invalid arguments" > /dev/stderr; exit 1;;
+            ?|:) echo "invalid arguments" >&2; exit 1;;
         esac; done;;
     thumbprint)
         while getopts :hqa: name; do case "$name" in
             h) usage; exit 1;;
             q) QUIET=1;;
             a) ACCOUNT_KEY="$OPTARG";;
-            ?|:) echo "invalid arguments" > /dev/stderr; exit 1;;
+            ?|:) echo "invalid arguments" >&2; exit 1;;
         esac; done;;
     sign)
         while getopts :hqa:k:r:c:w:P: name; do case "$name" in
@@ -575,7 +575,7 @@ case "$ACTION" in
             a) ACCOUNT_KEY="$OPTARG";;
             k)
                 if [ -n "$SERVER_CSR" ]; then
-                    echo "server key and server certificate signing request are mutual exclusive" > /dev/stderr
+                    echo "server key and server certificate signing request are mutual exclusive" >&2
                     exit 1
                 fi
                 SERVER_KEY="$OPTARG"
@@ -583,7 +583,7 @@ case "$ACTION" in
                 ;;
             r)
                 if [ -n "$SERVER_KEY" ]; then
-                    echo "server key and server certificate signing request are mutual exclusive" > /dev/stderr
+                    echo "server key and server certificate signing request are mutual exclusive" >&2
                     exit 1
                 fi
                 SERVER_CSR="$OPTARG"
@@ -592,7 +592,7 @@ case "$ACTION" in
             c) SERVER_CERT="$OPTARG";;
             w) WEBDIR="$OPTARG";;
             P) PUSH_TOKEN="$OPTARG";;
-            ?|:) echo "invalid arguments" > /dev/stderr; exit 1;;
+            ?|:) echo "invalid arguments" >&2; exit 1;;
         esac; done;;
     -h|--help|-?)
         usage
@@ -607,7 +607,7 @@ shift $(($OPTIND - 1))
 case "$ACTION" in
     register)
         load_account_key
-        [ -z "$ACCOUNT_EMAIL" ] && echo "account email address not given" > /dev/stderr && exit 1
+        [ -z "$ACCOUNT_EMAIL" ] && echo "account email address not given" >&2 && exit 1
         register_account_key
         [ $SHOW_THUMBPRINT -eq 1 ] && printf "account thumbprint: %s\n" "$ACCOUNT_THUMB"
         exit 0;;
