@@ -185,10 +185,7 @@ show_error() {
         echo "error while $1" >&2
     fi
 
-    ERR_TYPE="`sed -e 's/.*"type":"\([^"]*\)".*/\1/' "$RESP_BODY"`"
-    ERR_DETAILS="`sed -e 's/.*"detail":"\([^"]*\)".*/\1/' "$RESP_BODY"`"
-
-    echo "  $ERR_DETAILS ($ERR_TYPE)" >&2
+    jq -r '"  \(.detail) (\(.type))"' "$RESP_BODY" >&2
 }
 
 # generate the PROTECTED variable, which contains a nonce retrieved from the
@@ -307,11 +304,7 @@ request_challenge_domain(){
     send_req "$CA/acme/new-authz" "$NEW_AUTHZ"
 
     if check_http_status 201; then
-        DOMAIN_CHALLENGE="`sed -e '/"http-01"/ ! d; s/.*{\([^}]*"type":"http-01"[^}]*\)}.*/\1/' "$RESP_BODY"`"
-        DOMAIN_TOKEN="`echo "$DOMAIN_CHALLENGE" | sed 's/.*"token":"\([^"]*\)".*/\1/'`"
-        DOMAIN_URI="`echo "$DOMAIN_CHALLENGE" | sed 's/.*"uri":"\([^"]*\)".*/\1/'`"
-
-        DOMAIN_DATA="$DOMAIN_DATA $DOMAIN $DOMAIN_URI $DOMAIN_TOKEN"
+	DOMAIN_DATA="$DOMAIN_DATA $DOMAIN `jq -r '.challenges|map(select(.type == "http-01"))|.[0]|.uri,.token' "$RESP_BODY"`"
     elif check_http_status 400; then
         # account not registred?
         show_error "requesting challenge for $DOMAIN"
@@ -425,7 +418,7 @@ check_verification() {
             handle_curl_exit $? "$DOMAIN_URI"
         
             if check_http_status 202; then
-                DOMAIN_STATUS="`sed -e 's/.*"status":"\(invalid\|valid\|pending\)".*/\1/' "$RESP_BODY"`"
+                DOMAIN_STATUS="`jq -r .status "$RESP_BODY"`"
                 case "$DOMAIN_STATUS" in
                     valid)
                         log $DOMAIN is valid
